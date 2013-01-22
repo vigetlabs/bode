@@ -2,9 +2,7 @@
     Creation of socket-based connections requires several operations.  First, a
     socket is created with socket(2).  Next, a willingness to accept incoming
     connections and a queue limit for incoming connections are specified with
-    listen().  Finally, the connections are accepted with accept(2).  The
-    listen() call applies only to sockets of type SOCK_STREAM or
-    SOCK_SEQPACKET.
+    listen().  Finally, the connections are accepted with accept(2).
 */
 
 #include <stdio.h>
@@ -28,7 +26,7 @@ main(int argc, char *argv[])
     char *response = "HTTP/1.1 200 OK\n\ny u do dis\n";
 
     listener = socket(PF_INET, SOCK_STREAM, 0);
-    check(listener >= 0, "Couldn't create socket.");
+    check(listener >= 0, "Couldn't create socket.\n");
 
     memset(&servaddr, 0, sizeof(servaddr));
 
@@ -37,23 +35,23 @@ main(int argc, char *argv[])
     servaddr.sin_port        = htons(SERVER_PORT);
 
     result = bind(listener, (struct sockaddr *) &servaddr, sizeof(servaddr));
-    check(result == 0, "Couldn't bind listening socket.");
+    check(result == 0, "Couldn't bind listening socket.\n");
 
     result = listen(listener, LISTENQ);
-    check(result == 0, "Call to listen failed.")
+    check(result == 0, "Call to listen failed.\n")
 
     printf("My bode is redy on port %d.\n", SERVER_PORT);  
 
     while (1) {
         conn = accept(listener, NULL, NULL);
-        check(conn >= 0, "Error calling accept()");
+        check(conn >= 0, "Error calling accept.\n");
 
         printf("y u do dis\n");
 
         send(conn, response, strlen(response), 0);
 
         result = close(conn);
-        check(result == 0, "Error closing connection socket.");
+        check(result == 0, "Error closing connection socket.\n");
     }
 
     return 0;
