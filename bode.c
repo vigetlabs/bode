@@ -16,20 +16,19 @@
 #define SERVER_PORT (8080)
 #define LISTENQ     (1024)
 
+#define check(A, M) if (!(A)) { printf(M); return 1; }
+
 int
 main(int argc, char *argv[])
 {
-    int listener, conn;
+    int listener, conn, result;
     pid_t pid;
     struct sockaddr_in servaddr;
-    char *response;
+
+    char *response = "HTTP/1.1 200 OK\n\ny u do dis\n";
 
     listener = socket(PF_INET, SOCK_STREAM, 0);
-
-    if (listener < 0) {
-        printf("Couldn't create socket.");
-        return 1;
-    }
+    check(listener >= 0, "Couldn't create socket.");
 
     memset(&servaddr, 0, sizeof(servaddr));
 
@@ -37,36 +36,24 @@ main(int argc, char *argv[])
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port        = htons(SERVER_PORT);
 
-    if (bind(listener, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
-        printf("Couldn't bind listening socket.");
-        return 1;
-    }
+    result = bind(listener, (struct sockaddr *) &servaddr, sizeof(servaddr));
+    check(result == 0, "Couldn't bind listening socket.");
 
-    if (listen(listener, LISTENQ) < 0) {
-        printf("Call to listen failed.");
-        return 1;
-    }
+    result = listen(listener, LISTENQ);
+    check(result == 0, "Call to listen failed.")
 
     printf("My bode is redy on port %d.\n", SERVER_PORT);  
 
     while (1) {
         conn = accept(listener, NULL, NULL);
-
-        if (conn < 0) {
-            printf("Error calling accept()");
-            return 1;
-        }
+        check(conn >= 0, "Error calling accept()");
 
         printf("y u do dis\n");
 
-        response = "HTTP/1.1 200 OK\n\ny u do dis\n";
-
         send(conn, response, strlen(response), 0);
 
-        if (close(conn) < 0) {
-            printf("Error closing connection socket.");
-            return 1;
-        }
+        result = close(conn);
+        check(result == 0, "Error closing connection socket.");
     }
 
     return 0;
