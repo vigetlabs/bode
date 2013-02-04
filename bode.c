@@ -5,6 +5,7 @@
     listen().  Finally, the connections are accepted with accept(2).
 */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -16,14 +17,15 @@
 
 #define check(A, M) if (!(A)) { printf(M); return 1; }
 
+char *build_response(char *status, char **headers, char *bode);
+
 int
 main(int argc, char *argv[])
 {
-    int listener, conn, result;
-    pid_t pid;
-    struct sockaddr_in servaddr;
-
-    char *response = "HTTP/1.1 200 OK\n\ny u do dis\n";
+    int     listener, conn, result;
+    pid_t   pid;
+    struct  sockaddr_in servaddr;
+    char    *response;
 
     listener = socket(PF_INET, SOCK_STREAM, 0);
     check(listener >= 0, "Couldn't create socket.\n");
@@ -40,13 +42,13 @@ main(int argc, char *argv[])
     result = listen(listener, LISTENQ);
     check(result == 0, "Call to listen failed.\n")
 
-    printf("My bode is redy on port %d.\n", SERVER_PORT);  
+    printf("My bode is redy on port %d.\n", SERVER_PORT);
 
     while (1) {
         conn = accept(listener, NULL, NULL);
         check(conn >= 0, "Error calling accept.\n");
 
-        printf("y u do dis\n");
+        response = build_response("HTTP/1.1 200 OK", NULL, "y u do dis\n");
 
         send(conn, response, strlen(response), 0);
 
@@ -55,4 +57,38 @@ main(int argc, char *argv[])
     }
 
     return 0;
+}
+
+char*
+build_response(char *status, char **headers, char *bode)
+{
+    int  status_length,
+         bode_length,
+         bode_start,
+         cur;
+
+    char *response;
+
+    status_length = strlen(status);
+    bode_length   = strlen(bode);
+    bode_start    = status_length + 4;
+
+    response      = calloc(status_length + bode_length + 5, sizeof(char));
+
+    for (cur = 0; cur < status_length; cur++) {
+        response[cur] = status[cur];
+    }
+
+    response[cur++] = '\r';
+    response[cur++] = '\n';
+    response[cur++] = '\r';
+    response[cur++] = '\n';
+
+    for (cur = 0; cur < bode_length; cur++) {
+        response[bode_start + cur] = bode[cur];
+    }
+
+    response[bode_start + cur] = '\0';
+
+    return response;
 }
