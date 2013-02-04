@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <sys/stat.h>
+
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
@@ -18,6 +20,7 @@
 #define check(A, M) if (!(A)) { printf(M); return 1; }
 
 char *build_response(char *status, char **headers, char *bode);
+char *file_to_string(char *filename);
 
 int
 main(int argc, char *argv[])
@@ -25,7 +28,7 @@ main(int argc, char *argv[])
     int     listener, conn, result;
     pid_t   pid;
     struct  sockaddr_in servaddr;
-    char    *response;
+    char    *bode, *response;
 
     listener = socket(PF_INET, SOCK_STREAM, 0);
     check(listener >= 0, "Couldn't create socket.\n");
@@ -48,7 +51,13 @@ main(int argc, char *argv[])
         conn = accept(listener, NULL, NULL);
         check(conn >= 0, "Error calling accept.\n");
 
-        response = build_response("HTTP/1.1 200 OK", NULL, "y u do dis\n");
+        bode = file_to_string("index.html");
+
+        if (bode) {
+            response = build_response("HTTP/1.1 200 OK", NULL, bode);
+        } else {
+            response = build_response("HTTP/1.1 404 NOT FOUND", NULL, "Y U DO DIS\n");
+        }
 
         send(conn, response, strlen(response), 0);
 
@@ -91,4 +100,28 @@ build_response(char *status, char **headers, char *bode)
     response[bode_start + cur] = '\0';
 
     return response;
+}
+
+char*
+file_to_string (char *filename)
+{
+    FILE   *file;
+    struct stat file_stat;
+    int    size;
+    char   *contents, *cur, c;
+
+    if (stat(filename, &file_stat) != 0) {
+        return NULL;
+    }
+
+    file     = fopen(filename, "r");
+    size     = file_stat.st_size;
+    contents = calloc(size, sizeof(char));
+    cur      = contents;
+
+    while ((c = fgetc(file)) != EOF) {
+        *(cur++) = c;
+    }
+
+    return contents;
 }
