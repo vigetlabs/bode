@@ -9,18 +9,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <sys/stat.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#include <buffer.h>
+
 #define SERVER_PORT (8080)
 #define LISTENQ     (1024)
+#define BUF_SIZE    (1024)
 
 #define check(A, M) if (!(A)) { printf(M); return 1; }
 
-char *build_response(char *status, char **headers, char *bode);
+char *build_response(char *status, char *bode);
 char *file_to_string(char *filename);
 
 int
@@ -45,7 +49,7 @@ main(int argc, char *argv[])
     result = listen(listener, LISTENQ);
     check(result == 0, "Call to listen failed.\n")
 
-    printf("My bode is redy on port %d.\n", SERVER_PORT);
+    fprintf(stderr, "My bode is redy on port %d.\n", SERVER_PORT);
 
     while (1) {
         conn = accept(listener, NULL, NULL);
@@ -54,9 +58,10 @@ main(int argc, char *argv[])
         bode = file_to_string("index.html");
 
         if (bode) {
-            response = build_response("HTTP/1.1 200 OK", NULL, bode);
+            response = build_response("HTTP/1.1 200 OK", bode);
+            free(bode);
         } else {
-            response = build_response("HTTP/1.1 404 NOT FOUND", NULL, "Y U DO DIS\n");
+            response = build_response("HTTP/1.1 404 NOT FOUND", "Y U DO DIS\n");
         }
 
         send(conn, response, strlen(response), 0);
@@ -65,39 +70,21 @@ main(int argc, char *argv[])
         check(result == 0, "Error closing connection socket.\n");
     }
 
+    free(response);
+
     return 0;
 }
 
 char*
-build_response(char *status, char **headers, char *bode)
+build_response(char *status, char *bode)
 {
-    int  status_length,
-         bode_length,
-         bode_start,
-         cur;
+    char   *response;
+    Buffer *response_buffer = buffer_alloc(BUF_SIZE);
 
-    char *response;
+    buffer_appendf(response_buffer, "%s\r\n\r\n%s", status, bode);
+    response = buffer_to_s(response_buffer);
 
-    status_length = strlen(status);
-    bode_length   = strlen(bode);
-    bode_start    = status_length + 4;
-
-    response      = calloc(status_length + bode_length + 5, sizeof(char));
-
-    for (cur = 0; cur < status_length; cur++) {
-        response[cur] = status[cur];
-    }
-
-    response[cur++] = '\r';
-    response[cur++] = '\n';
-    response[cur++] = '\r';
-    response[cur++] = '\n';
-
-    for (cur = 0; cur < bode_length; cur++) {
-        response[bode_start + cur] = bode[cur];
-    }
-
-    response[bode_start + cur] = '\0';
+    buffer_free(response_buffer);
 
     return response;
 }
@@ -105,23 +92,37 @@ build_response(char *status, char **headers, char *bode)
 char*
 file_to_string (char *filename)
 {
-    FILE   *file;
-    struct stat file_stat;
-    int    size;
-    char   *contents, *cur, c;
+    FILE *filed;
+    Buffer *file_buffer = buffer_alloc(BUF_SIZE + 1);
+    char *buf = calloc(1, BUF_SIZE * sizeof(char));
+    char *contents;
 
-    if (stat(filename, &file_stat) != 0) {
-        return NULL;
+    filed = fopen(filename, "r");
+    if (filed == NULL) {
+        fprintf(stderr, "Could not open '%s': %s\n", filename, strerror(errno));
+        goto error;
     }
 
-    file     = fopen(filename, "r");
-    size     = file_stat.st_size;
-    contents = calloc(size, sizeof(char));
-    cur      = contents;
+    while(1) {
+        if (feof(filed)) {
+            break;
+        } else if (ferror(filed)) {
+            fprintf(stderr, "Error reading file.\n");
+            goto error;
+        }
 
-    while ((c = fgetc(file)) != EOF) {
-        *(cur++) = c;
+        fgets(buf, BUF_SIZE, filed);
+        buffer_append(file_buffer, buf, BUF_SIZE);
     }
+
+    free(buf);
+
+    contents = buffer_to_s(file_buffer);
+    buffer_free(file_buffer);
 
     return contents;
+error:
+    if (buf) { free(buf); }
+    buffer_free(file_buffer);
+    return NULL;
 }

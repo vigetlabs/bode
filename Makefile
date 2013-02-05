@@ -1,4 +1,5 @@
-CFLAGS=-Wall
+CFLAGS=-Wall -I./vendor/buffer/src
+LDFLAGS=-L./vendor/buffer/build -lbuffer
 
 all: bode
 
