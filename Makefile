@@ -1,5 +1,6 @@
-all:
-	make bode
+CFLAGS=-Wall
+
+all: bode
 
 clean:
-	rm -f bode
+	rm -rf bode *.dSYM *.o

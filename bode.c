@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <sys/stat.h>
 
@@ -26,7 +27,6 @@ int
 main(int argc, char *argv[])
 {
     int     listener, conn, result;
-    pid_t   pid;
     struct  sockaddr_in servaddr;
     char    *bode, *response;
 
