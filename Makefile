@@ -1,7 +1,21 @@
-CFLAGS=-Wall -I./vendor/buffer/src
-LDFLAGS=-L./vendor/buffer/build -lbuffer
+CFLAGS=-Wall -Ivendor/buffer/src -Isrc
+LDFLAGS=-Lvendor/buffer/build -lbuffer
 
-all: bode
+SOURCES=$(wildcard *.c src/**/*.c src/*.c)
+OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
+
+TARGET=bode
+
+all: $(TARGET)
+
+$(TARGET): build $(OBJECTS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
+
+build:
+	@mkdir -p bin
+
+dev: CFLAGS+=-g -Wextra -DNDEBUG
+dev: all
 
 clean:
-	rm -rf bode *.dSYM *.o
+	rm -rf bode *.dSYM src/*.o

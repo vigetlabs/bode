@@ -1,0 +1,30 @@
+#ifndef RESPONSE_H
+#define RESPONSE_H
+
+#include <stdio.h>
+
+#include "header.h"
+
+#define BUF_SIZE 1024
+
+typedef struct Status {
+    int code;
+    char *message;
+} Status;
+
+typedef struct Response {
+    Status *status;
+    Header *header;
+    char *bode;
+    size_t total_size;
+} Response;
+
+Response *response_create(char *filename);
+void response_add_header(Response *response, char *key, char *value);
+void response_bode_from_string(Response *response, const char *bode);
+void response_bode_from_file(Response *response, FILE *source);
+char *response_output(Response *response);
+size_t response_length(Response *response);
+void response_free(Response *response);
+
+#endif

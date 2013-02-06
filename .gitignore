@@ -1,2 +1,3 @@
 bode
 *.dSYM
+*.o
