@@ -14,13 +14,13 @@ typedef struct Status {
 
 typedef struct Response {
     Status *status;
-    Header *header;
+    Header **headers;
+    int headers_count;
     char *bode;
     size_t total_size;
 } Response;
 
 Response *response_create(char *filename);
-void response_add_header(Response *response, char *key, char *value);
 void response_bode_from_string(Response *response, const char *bode);
 void response_bode_from_file(Response *response, FILE *source);
 char *response_output(Response *response);

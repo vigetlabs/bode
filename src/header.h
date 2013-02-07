@@ -6,7 +6,7 @@ typedef struct Header {
     char *value;
 } Header;
 
-Header *header_create_int(const char *key, int value);
+Header *header_create(const char *key, char *value);
 void header_free(Header *header);
 
 #endif

@@ -8,28 +8,36 @@
 
 void response_add_status(Response *response, int status_code);
 void response_add_header_int(Response *response, const char *key, int value);
+void response_add_header_str(Response *response, const char *key, char *value);
 
 Response *
 response_create(char *filename)
 {
     Response *response = malloc(sizeof(Response));
 
-    response->bode   = NULL;
-    response->header = NULL;
+    response->bode          = NULL;
+    response->headers       = NULL;
+    response->headers_count = 0;
 
     FILE *source = fopen(filename, "r");
 
     if (source == NULL) {
         // 404
         response_add_status(response, 404);
+        response_add_header_str(response, "Content-Type", "text/plain");
+
         response_bode_from_string(response, "Y U DO DIS\n");
     } else {
         // 200 -- file read could fail in bode_from_file?
         response_add_status(response, 200);
+        response_add_header_str(response, "Content-Type", "text/html");
+
         response_bode_from_file(response, source);
 
         fclose(source);
     }
+
+    response_add_header_str(response, "Connection", "close");
 
     return response;
 }
@@ -110,10 +118,15 @@ response_output(Response *response)
 {
     Buffer *output_buffer = buffer_alloc(BUF_SIZE);
     char   *output;
+    int    i = 0;
 
     buffer_appendf(output_buffer, "HTTP/1.1 %d %s\r\n", response->status->code, response->status->message);
-    buffer_appendf(output_buffer, "%s: %s\r\n\r\n", response->header->key, response->header->value);
 
+    for(i = 0; i < response->headers_count; i++) {
+        buffer_appendf(output_buffer, "%s: %s\r\n", response->headers[i]->key, response->headers[i]->value);
+    }
+
+    buffer_append(output_buffer, "\r\n", 2);
     buffer_append(output_buffer, response->bode, strlen(response->bode));
 
     response->total_size = buffer_strlen(output_buffer);
@@ -140,16 +153,38 @@ void status_free(Status *status)
 void
 response_free(Response *response)
 {
+    int i = 0;
+
     if (response->status) { status_free(response->status); }
-    if (response->header) { header_free(response->header); }
     if (response->bode)   { free(response->bode); }
+
+    if (response->headers) {
+        for(i = 0; i < response->headers_count; i++) {
+            header_free(response->headers[i]);
+        }
+        free(response->headers);
+    }
 
     free(response);
 }
 
 void
+response_add_header_str(Response *response, const char *key, char *value)
+{
+    response->headers = realloc(response->headers, (response->headers_count + 1) * sizeof(Header *));
+
+    response->headers[response->headers_count] = header_create(key, value);
+    response->headers_count++;
+}
+
+void
 response_add_header_int(Response *response, const char *key, int value)
 {
-    Header *header = header_create_int(key, value);
-    response->header = header;
+    char *str_value;
+
+    asprintf(&str_value, "%d", value);
+
+    response_add_header_str(response, key, str_value);
+
+    free(str_value);
 }

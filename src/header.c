@@ -4,14 +4,15 @@
 
 #include <header.h>
 
-Header *header_create_int(const char *key, int value)
+Header *header_create(const char *key, char *value)
 {
     Header *header = malloc(sizeof(Header));
 
     header->key = calloc(strlen(key) + 1, sizeof(char));
     strncpy(header->key, key, strlen(key));
 
-    asprintf(&header->value, "%d", value);
+    header->value = calloc(strlen(value) + 1, sizeof(char));
+    strncpy(header->value, value, strlen(value));
 
     return header;
 }
