@@ -21,8 +21,8 @@ typedef struct Response {
 } Response;
 
 Response *response_create(char *filename);
-void response_bode_from_string(Response *response, const char *bode);
-void response_bode_from_file(Response *response, FILE *source);
+int response_bode_from_string(Response *response, const char *bode);
+int response_bode_from_file(Response *response, FILE *source);
 char *response_output(Response *response);
 size_t response_length(Response *response);
 void response_free(Response *response);

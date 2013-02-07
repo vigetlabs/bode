@@ -13,7 +13,8 @@ void response_add_header_str(Response *response, const char *key, char *value);
 Response *
 response_create(char *filename)
 {
-    Response *response = malloc(sizeof(Response));
+    Response *response  = malloc(sizeof(Response));
+    int      bytes_read = 0;
 
     response->bode          = NULL;
     response->headers       = NULL;
@@ -26,17 +27,18 @@ response_create(char *filename)
         response_add_status(response, 404);
         response_add_header_str(response, "Content-Type", "text/plain");
 
-        response_bode_from_string(response, "Y U DO DIS\n");
+        bytes_read = response_bode_from_string(response, "Y U DO DIS\n");
     } else {
         // 200 -- file read could fail in bode_from_file?
         response_add_status(response, 200);
         response_add_header_str(response, "Content-Type", "text/html");
 
-        response_bode_from_file(response, source);
+        bytes_read = response_bode_from_file(response, source);
 
         fclose(source);
     }
 
+    response_add_header_int(response, "Content-Length", bytes_read);
     response_add_header_str(response, "Connection", "close");
 
     return response;
@@ -45,8 +47,8 @@ response_create(char *filename)
 void
 response_add_status(Response *response, int status_code)
 {
-    int max_message_length = 22;
-    char *message = calloc(max_message_length, sizeof(char));
+    int  max_message_length = 22;
+    char *message           = calloc(max_message_length, sizeof(char));
 
     switch(status_code) {
         case 200:
@@ -71,11 +73,12 @@ response_add_status(Response *response, int status_code)
     free(message);
 }
 
-void
+int
 response_bode_from_file(Response *response, FILE *source)
 {
     Buffer *file_buffer = buffer_alloc(BUF_SIZE + 1);
-    char *buf = calloc(BUF_SIZE, sizeof(char));
+    char   *buf         = calloc(BUF_SIZE, sizeof(char));
+    int    bytes_read   = 0;
 
     while(!feof(source)) {
         if (ferror(source)) {
@@ -89,28 +92,28 @@ response_bode_from_file(Response *response, FILE *source)
 
     free(buf);
 
-    response_add_header_int(response, "Content-Length", buffer_strlen(file_buffer));
+    bytes_read = buffer_strlen(file_buffer);
 
     response->bode = buffer_to_s(file_buffer);
     buffer_free(file_buffer);
 
-    return;
+    return bytes_read;
 error:
     if (buf) { free(buf); }
     buffer_free(file_buffer);
 
-    response->bode = NULL;
+    return -1;
 }
 
-void
+int
 response_bode_from_string(Response *response, const char *bode)
 {
     int length = strlen(bode);
 
-    response_add_header_int(response, "Content-Length", length);
-
     response->bode = calloc(length + 1, sizeof(char));
     strncpy(response->bode, bode, length);
+
+    return length;
 }
 
 char *
