@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include <buffer.h>
 
@@ -9,6 +10,27 @@
 void response_add_status(Response *response, int status_code);
 void response_add_header_int(Response *response, const char *key, int value);
 void response_add_header_str(Response *response, const char *key, char *value);
+
+int
+is_file(char *filename)
+{
+    struct stat fs;
+
+    if (stat(filename, &fs) == 0) {
+        return (fs.st_mode & S_IFREG) == S_IFREG;
+    }
+
+    return 0;
+}
+
+FILE *
+file_open_from_path(char *filename) {
+    if (is_file(filename)) {
+        return fopen(filename, "r");
+    }
+
+    return NULL;
+}
 
 Response *
 response_create(char *filename)
@@ -20,7 +42,7 @@ response_create(char *filename)
     response->headers       = NULL;
     response->headers_count = 0;
 
-    FILE *source = fopen(filename, "r");
+    FILE *source = file_open_from_path(filename);
 
     if (source == NULL) {
         // 404
