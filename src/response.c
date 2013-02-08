@@ -86,8 +86,9 @@ response_bode_from_file(Response *response, FILE *source)
             goto error;
         }
 
-        fgets(buf, BUF_SIZE, source);
-        buffer_append(file_buffer, buf, BUF_SIZE);
+        if (fgets(buf, BUF_SIZE, source) != NULL) {
+            buffer_append(file_buffer, buf, BUF_SIZE);
+        }
     }
 
     free(buf);
