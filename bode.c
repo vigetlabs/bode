@@ -25,6 +25,7 @@ main(void)
     int     listener, conn, result;
     struct  sockaddr_in servaddr;
     char    *output;
+    pid_t   pid;
 
     listener = socket(PF_INET, SOCK_STREAM, 0);
     check(listener >= 0, "Couldn't create socket.\n");
@@ -47,18 +48,29 @@ main(void)
         conn = accept(listener, NULL, NULL);
         check(conn >= 0, "Error calling accept.\n");
 
-        Response *response = response_create("index.html");
+        pid = fork();
+        if (pid == 0) {
+            // Child process, handle connection
+            check(close(listener) == 0, "Error closing listening socket.\n");
 
-        output = response_output(response);
+            Response *response = response_create("index.html");
 
-        send(conn, output, response_length(response), 0);
+            output = response_output(response);
 
-        response_free(response);
-        free(output);
+            send(conn, output, response_length(response), 0);
 
-        result = close(conn);
-        check(result == 0, "Error closing connection socket.\n");
+            check(close(conn) == 0, "Error closing connection socket.\n");
+
+            response_free(response);
+            free(output);
+
+            exit(0);
+        }
+
+        check(close(conn) == 0, "Error closing connection socket.\n");
+
+        waitpid(-1, NULL, WNOHANG);
     }
 
-    return 0;
+    return 1;
 }
