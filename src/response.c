@@ -5,6 +5,7 @@
 
 #include <response.h>
 #include <header.h>
+#include <file.h>
 
 void response_add_status(Response *response, int status_code);
 void response_add_header_int(Response *response, const char *key, int value);
@@ -20,7 +21,7 @@ response_create(char *filename)
     response->headers       = NULL;
     response->headers_count = 0;
 
-    FILE *source = fopen(filename, "r");
+    FILE *source = file_open_from_path(filename);
 
     if (source == NULL) {
         // 404
