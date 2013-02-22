@@ -18,4 +18,4 @@ dev: CFLAGS+=-g -Wextra -DNDEBUG
 dev: all
 
 clean:
-	rm -rf bode *.dSYM src/*.o
+	rm -rf bode *.dSYM *.o src/*.o

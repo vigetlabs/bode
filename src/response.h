@@ -3,9 +3,8 @@
 
 #include <stdio.h>
 
-#include "header.h"
-
-#define BUF_SIZE 1024
+#include <header.h>
+#include <mime.h>
 
 typedef struct Status {
     int code;
@@ -20,7 +19,7 @@ typedef struct Response {
     size_t total_size;
 } Response;
 
-Response *response_create(char *filename);
+Response *response_create(char *filename, MimeTypes *mime_types);
 int response_bode_from_string(Response *response, const char *bode);
 int response_bode_from_file(Response *response, FILE *source);
 char *response_output(Response *response);

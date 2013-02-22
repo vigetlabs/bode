@@ -1,25 +1,47 @@
 #include <file.h>
+#include <mime.h>
 
 int is_file(char *filename);
 int is_dir(char *filename);
 char *path_append(char *path, const char *filename);
+char *file_get_extension(char *filename);
 
-FILE *
-file_open_from_path(char *filename)
+char *
+file_path_for(char *requested_filename)
 {
-    char *full_path = NULL;
-    FILE *fd        = NULL;
+    char *filename = NULL;
 
-    if (is_file(filename)) {
-        fd = fopen(filename, "r");
-    } else if (is_dir(filename)) {
-        full_path = path_append(filename, "index.html");
-        fd = file_open_from_path(full_path);
-
-        free(full_path);
+    if (is_file(requested_filename)) {
+        filename = strdup(requested_filename);
+    } else if (is_dir(requested_filename)) {
+        filename = path_append(requested_filename, "index.html");
     }
 
-    return fd;
+    return filename;
+}
+
+char *
+file_content_type_for(MimeTypes *mime_types, char *filename)
+{
+    char *ext = file_get_extension(filename);
+
+    return mime_types_find_content_type(mime_types, ext);
+}
+
+char *
+file_get_extension(char *filename)
+{
+    const char *d = "."; // split on '.'
+
+    char *token,
+         *ext,
+         *fp = filename;
+
+    while ((token = strsep(&fp, d)) != NULL) {
+        ext = token;
+    }
+
+    return ext;
 }
 
 int
