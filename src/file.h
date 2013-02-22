@@ -6,6 +6,9 @@
 #include <sys/stat.h>
 #include <string.h>
 
-FILE *file_open_from_path(char *filename);
+#include <mime.h>
+
+char *file_path_for(char *requested_filename);
+char *file_content_type_for(MimeTypes *mime_types, char *filename);
 
 #endif

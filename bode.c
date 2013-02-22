@@ -15,9 +15,12 @@
 
 #include <header.h>
 #include <response.h>
+#include <mime.h>
+#include <util.h>
 
-#define SERVER_PORT (8080)
-#define LISTENQ     (1024)
+#define SERVER_PORT   (8080)
+#define LISTENQ       (1024)
+#define DOCUMENT_ROOT "/root"
 
 #define check(A, M) if (!(A)) { printf(M); return 1; }
 
@@ -30,6 +33,8 @@ main(void)
     struct  sockaddr_in servaddr;
     char    *output;
     pid_t   pid;
+
+    MimeTypes *mime_types = mime_types_load_from_file(MIME_TYPES_CONFIG_FILE);
 
     listener = socket(PF_INET, SOCK_STREAM, 0);
     check(listener >= 0, "Couldn't create socket.\n");
@@ -59,7 +64,7 @@ main(void)
             // Child process, handle connection
             check(close(listener) == 0, "Error closing listening socket.\n");
 
-            Response *response = response_create(request_path);
+            Response *response = response_create(request_path, mime_types);
 
             output = response_output(response);
 
@@ -79,6 +84,7 @@ main(void)
         waitpid(-1, NULL, WNOHANG);
     }
 
+    mime_types_free(mime_types);
     return 1;
 }
 
@@ -105,7 +111,7 @@ fetch_request_path(int connection)
     buffer_free(request_buffer);
 
     sscanf(request_path, "GET %s", tmp);
-    asprintf(&relative_path, ".%s", tmp);
+    asprintf(&relative_path, ".%s%s", DOCUMENT_ROOT, tmp);
 
     free(request_path);
     free(tmp);

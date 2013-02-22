@@ -5,23 +5,29 @@
 
 #include <response.h>
 #include <header.h>
+#include <mime.h>
 #include <file.h>
+#include <util.h>
 
 void response_add_status(Response *response, int status_code);
 void response_add_header_int(Response *response, const char *key, int value);
 void response_add_header_str(Response *response, const char *key, char *value);
 
 Response *
-response_create(char *filename)
+response_create(char *filename, MimeTypes *mime_types)
 {
+    FILE *source = NULL;
     Response *response  = malloc(sizeof(Response));
     int      bytes_read = 0;
+    char     *full_file_path = file_path_for(filename);
 
     response->bode          = NULL;
     response->headers       = NULL;
     response->headers_count = 0;
 
-    FILE *source = file_open_from_path(filename);
+    if (full_file_path) {
+        source = fopen(full_file_path, "r");
+    }
 
     if (source == NULL) {
         // 404
@@ -32,7 +38,7 @@ response_create(char *filename)
     } else {
         // 200 -- file read could fail in bode_from_file?
         response_add_status(response, 200);
-        response_add_header_str(response, "Content-Type", "text/html");
+        response_add_header_str(response, "Content-Type", file_content_type_for(mime_types, full_file_path));
 
         bytes_read = response_bode_from_file(response, source);
 
@@ -41,6 +47,10 @@ response_create(char *filename)
 
     response_add_header_int(response, "Content-Length", bytes_read);
     response_add_header_str(response, "Connection", "close");
+
+    if (full_file_path) {
+        free(full_file_path);
+    }
 
     return response;
 }
