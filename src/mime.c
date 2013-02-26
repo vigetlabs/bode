@@ -50,9 +50,13 @@ mime_types_push(MimeTypes *mime_types, char *type, char *ext)
 }
 
 MimeTypes *
-mime_types_load_from_file(char *filename)
+mime_types_load(Config *config)
 {
-    FILE *fp = fopen(filename, "r");
+    char *filename;
+
+    asprintf(&filename, "%s/%s", config->config_dir, MIME_TYPES_CONFIG_FILENAME);
+
+    FILE *fp = fopen(filename, "r"); // TODO: check for failure
     const char *d = " \t\n";
 
     char line[BUF_SIZE],
@@ -79,6 +83,7 @@ mime_types_load_from_file(char *filename)
         }
     }
 
+    free(filename);
     fclose(fp);
 
     return mime_types;
