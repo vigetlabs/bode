@@ -28,7 +28,7 @@ Config *initialize_configuration(int argc, char *argv[]);
 int
 main(int argc, char *argv[])
 {
-    int     listener, conn, result;
+    int     listener, conn, result, optval;
     struct  sockaddr_in servaddr;
     char    *output;
     pid_t   pid;
@@ -44,6 +44,9 @@ main(int argc, char *argv[])
 
     listener = socket(PF_INET, SOCK_STREAM, 0);
     check(listener >= 0, "Couldn't create socket.\n");
+
+    optval = 1;
+    setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof optval);
 
     memset(&servaddr, 0, sizeof(servaddr));
 
