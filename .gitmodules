@@ -1,3 +1,0 @@
-[submodule "vendor/buffer"]
-	path = vendor/buffer
-	url = git://github.com/reagent/buffer.git
