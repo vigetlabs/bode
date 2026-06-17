@@ -117,7 +117,15 @@ fetch_request_path(int connection, char *document_root)
     request_path = buffer_to_s(request_buffer);
     buffer_free(request_buffer);
 
-    sscanf(request_path, "GET %s", tmp);
+    // Width-limited to BUF_SIZE-1 so a long request target can't overflow tmp.
+    // A malformed request line (no match) yields NULL, which the caller serves
+    // as a 404.
+    if (sscanf(request_path, "GET %1023s", tmp) != 1) {
+        free(request_path);
+        free(tmp);
+        return NULL;
+    }
+
     asprintf(&relative_path, "%s%s", document_root, tmp);
 
     free(request_path);
