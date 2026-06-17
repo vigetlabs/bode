@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <limits.h>
 
 #include <arpa/inet.h>
 
@@ -23,6 +24,7 @@
 #define LISTENQ 1024
 
 char *fetch_request_path(int connection, char *document_root);
+char *resolve_within_root(const char *document_root, const char *candidate);
 Config *initialize_configuration(int argc, char *argv[]);
 
 int
@@ -131,7 +133,43 @@ fetch_request_path(int connection, char *document_root)
     free(request_path);
     free(tmp);
 
-    return relative_path;
+    // Reject any target that escapes the document root (e.g. "/../../etc/passwd").
+    char *safe_path = resolve_within_root(document_root, relative_path);
+    free(relative_path);
+
+    return safe_path;
+}
+
+/*
+    Canonicalize `candidate` and confirm it lives inside `document_root`.
+    Returns a newly-allocated absolute path on success, or NULL if the path
+    escapes the root or cannot be resolved (a non-existent path resolves to
+    NULL here and is served as a 404 by the caller).
+*/
+char *
+resolve_within_root(const char *document_root, const char *candidate)
+{
+    char root_real[PATH_MAX];
+    char candidate_real[PATH_MAX];
+
+    if (realpath(document_root, root_real) == NULL) {
+        return NULL;
+    }
+
+    if (realpath(candidate, candidate_real) == NULL) {
+        return NULL;
+    }
+
+    size_t root_len = strlen(root_real);
+
+    // Must share the root prefix AND sit on a path boundary, so that a sibling
+    // like "/srv/wwwevil" can't masquerade as living under "/srv/www".
+    if (strncmp(candidate_real, root_real, root_len) != 0 ||
+        (candidate_real[root_len] != '/' && candidate_real[root_len] != '\0')) {
+        return NULL;
+    }
+
+    return strdup(candidate_real);
 }
 
 Config *
