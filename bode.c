@@ -11,6 +11,8 @@
 #include <getopt.h>
 #include <limits.h>
 
+#include <sys/socket.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
 
 #include <buffer.h>
@@ -23,8 +25,17 @@
 
 #define LISTENQ 1024
 
+// Drop a connection that stalls mid-request (or mid-response) rather than
+// letting it tie up a forked worker indefinitely (slowloris).
+#define CONNECTION_TIMEOUT_SECONDS 10
+
+// Cap on how much of a request we will buffer, so a client can't exhaust
+// memory by streaming an unbounded request.
+#define MAX_REQUEST_SIZE (64 * 1024)
+
 char *fetch_request_path(int connection, char *document_root);
 char *resolve_within_root(const char *document_root, const char *candidate);
+void set_connection_timeouts(int connection);
 Config *initialize_configuration(int argc, char *argv[]);
 
 int
@@ -65,6 +76,8 @@ main(int argc, char *argv[])
         conn = accept(listener, NULL, NULL);
         check(conn >= 0, "Error calling accept.\n");
 
+        set_connection_timeouts(conn);
+
         pid = fork();
         if (pid == 0) {
             char *request_path = fetch_request_path(conn, config->document_root);
@@ -103,11 +116,25 @@ fetch_request_path(int connection, char *document_root)
     Buffer  *request_buffer = buffer_alloc(BUF_SIZE);
     char    *tmp            = calloc(BUF_SIZE, sizeof(char));
     char    *request_path, *relative_path;
-    ssize_t bytes_received = 0;
+    ssize_t bytes_received  = 0;
+    size_t  total_received  = 0;
 
     while (1) {
         bytes_received = recv(connection, tmp, BUF_SIZE, 0);
+
+        // <= 0 means the peer closed, an error occurred, or the receive timed
+        // out (SO_RCVTIMEO). Stop reading; never append a negative length.
+        if (bytes_received <= 0) {
+            break;
+        }
+
         buffer_append(request_buffer, tmp, bytes_received);
+        total_received += bytes_received;
+
+        // Refuse to buffer an unbounded request.
+        if (total_received >= MAX_REQUEST_SIZE) {
+            break;
+        }
 
         if (bytes_received < BUF_SIZE) {
             break;
@@ -170,6 +197,20 @@ resolve_within_root(const char *document_root, const char *candidate)
     }
 
     return strdup(candidate_real);
+}
+
+/*
+    Apply receive and send timeouts to an accepted connection so a slow or
+    stalled client can't tie up a forked worker indefinitely. Best-effort:
+    a failure to set the option is non-fatal.
+*/
+void
+set_connection_timeouts(int connection)
+{
+    struct timeval timeout = { .tv_sec = CONNECTION_TIMEOUT_SECONDS, .tv_usec = 0 };
+
+    setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    setsockopt(connection, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 }
 
 Config *
