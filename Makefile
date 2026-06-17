@@ -1,5 +1,4 @@
-CFLAGS=-Wall -Ivendor/buffer/src -Ivendor/sds -Isrc
-LDFLAGS=-Lvendor/buffer/build -lbuffer
+CFLAGS=-Wall -Ivendor/sds -Isrc
 
 SOURCES=$(wildcard *.c src/**/*.c src/*.c) vendor/sds/sds.c
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
@@ -9,7 +8,7 @@ TARGET=bode
 all: $(TARGET)
 
 $(TARGET): build $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
+	$(CC) -o $@ $(OBJECTS)
 
 build:
 	@mkdir -p bin
