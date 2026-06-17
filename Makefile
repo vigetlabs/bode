@@ -1,7 +1,7 @@
-CFLAGS=-Wall -Ivendor/buffer/src -Isrc
+CFLAGS=-Wall -Ivendor/buffer/src -Ivendor/sds -Isrc
 LDFLAGS=-Lvendor/buffer/build -lbuffer
 
-SOURCES=$(wildcard *.c src/**/*.c src/*.c)
+SOURCES=$(wildcard *.c src/**/*.c src/*.c) vendor/sds/sds.c
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 TARGET=bode
@@ -18,4 +18,4 @@ dev: CFLAGS+=-g -Wextra -DNDEBUG
 dev: all
 
 clean:
-	rm -rf bode *.dSYM *.o src/*.o
+	rm -rf bode *.dSYM *.o src/*.o vendor/sds/*.o
