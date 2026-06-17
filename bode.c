@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 
             free(request_path);
             response_free(response);
-            free(output);
+            sdsfree(output);
 
             exit(0);
         }
