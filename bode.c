@@ -15,7 +15,7 @@
 #include <sys/time.h>
 #include <arpa/inet.h>
 
-#include <buffer.h>
+#include <sds.h>
 
 #include <header.h>
 #include <response.h>
@@ -113,9 +113,9 @@ main(int argc, char *argv[])
 char *
 fetch_request_path(int connection, char *document_root)
 {
-    Buffer  *request_buffer = buffer_alloc(BUF_SIZE);
+    sds     request        = sdsempty();
     char    *tmp            = calloc(BUF_SIZE, sizeof(char));
-    char    *request_path, *relative_path;
+    char    *relative_path;
     ssize_t bytes_received  = 0;
     size_t  total_received  = 0;
 
@@ -128,7 +128,8 @@ fetch_request_path(int connection, char *document_root)
             break;
         }
 
-        buffer_append(request_buffer, tmp, bytes_received);
+        // sds may reallocate on append, so reassign the handle.
+        request = sdscatlen(request, tmp, bytes_received);
         total_received += bytes_received;
 
         // Refuse to buffer an unbounded request.
@@ -143,21 +144,18 @@ fetch_request_path(int connection, char *document_root)
 
     memset(tmp, 0, BUF_SIZE);
 
-    request_path = buffer_to_s(request_buffer);
-    buffer_free(request_buffer);
-
     // Width-limited to BUF_SIZE-1 so a long request target can't overflow tmp.
     // A malformed request line (no match) yields NULL, which the caller serves
     // as a 404.
-    if (sscanf(request_path, "GET %1023s", tmp) != 1) {
-        free(request_path);
+    if (sscanf(request, "GET %1023s", tmp) != 1) {
+        sdsfree(request);
         free(tmp);
         return NULL;
     }
 
     asprintf(&relative_path, "%s%s", document_root, tmp);
 
-    free(request_path);
+    sdsfree(request);
     free(tmp);
 
     // Reject any target that escapes the document root (e.g. "/../../etc/passwd").
