@@ -141,7 +141,7 @@ response_output(Response *response)
 }
 
 size_t
-response_length(Response *response)
+response_length(const Response *response)
 {
     return response->total_size;
 }
@@ -156,13 +156,11 @@ void status_free(Status *status)
 void
 response_free(Response *response)
 {
-    int i = 0;
-
     if (response->status) { status_free(response->status); }
     if (response->bode)   { sdsfree(response->bode); }
 
     if (response->headers) {
-        for(i = 0; i < response->headers_count; i++) {
+        for (int i = 0; i < response->headers_count; i++) {
             header_free(response->headers[i]);
         }
         free(response->headers);

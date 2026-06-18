@@ -4,7 +4,7 @@
 
 #include <header.h>
 
-Header *header_create(const char *key, char *value)
+Header *header_create(const char *key, const char *value)
 {
     Header *header = malloc(sizeof(Header));
 

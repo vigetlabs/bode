@@ -35,4 +35,5 @@ lint:
 	cppcheck --enable=warning,performance,portability,style --inconclusive \
 		--std=c11 --quiet --error-exitcode=1 \
 		--suppress=missingIncludeSystem \
+		--suppress='*:vendor/sds/*' \
 		-Isrc -Ivendor/sds $(LINT_SOURCES)

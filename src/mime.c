@@ -20,7 +20,7 @@ mime_types_create(int initial_allocation)
 }
 
 MimeType *
-mime_type_create(char *type, char *ext)
+mime_type_create(const char *type, const char *ext)
 {
     // TODO: check for alloc errors
     MimeType *mime_type = calloc(1, sizeof(MimeType));
@@ -90,7 +90,7 @@ mime_types_load(Config *config)
 }
 
 char *
-mime_types_find_content_type(MimeTypes *mime_types, char *ext)
+mime_types_find_content_type(MimeTypes *mime_types, const char *ext)
 {
     int i = 0;
 
