@@ -19,7 +19,7 @@ typedef struct MimeTypes {
 } MimeTypes;
 
 MimeTypes *mime_types_load(Config *config);
-char *mime_types_find_content_type(MimeTypes *mime_types, char *ext);
+char *mime_types_find_content_type(MimeTypes *mime_types, const char *ext);
 void mime_types_free(MimeTypes *mime_types);
 
 #endif
