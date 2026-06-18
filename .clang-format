@@ -1,0 +1,17 @@
+# bode C style: K&R-ish braces, return type on its own line for function
+# definitions, 4-space indent, aligned consecutive declarations, 80 columns.
+BasedOnStyle: LLVM
+Language: Cpp
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 80
+BreakBeforeBraces: Linux
+AlwaysBreakAfterReturnType: TopLevelDefinitions
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+PointerAlignment: Right
+SpaceBeforeParens: ControlStatements
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: false
+KeepEmptyLinesAtTheStartOfBlocks: false
