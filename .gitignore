@@ -2,3 +2,5 @@ bode
 *.dSYM
 *.o
 /root/*
+tests/*_tests
+tests/tests.log
