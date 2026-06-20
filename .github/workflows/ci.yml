@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    name: Build & test (ASan/UBSan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build server
+        run: make
+
+      - name: Run tests
+        run: make test
+
+  lint:
+    name: cppcheck (advisory)
+    runs-on: ubuntu-latest
+    # Advisory for now: there are known-open findings (see #15, #17, #19, #27,
+    # and PR #26). Flip this to blocking — drop continue-on-error — once those
+    # land and `make lint` is clean.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Run lint
+        run: make lint
