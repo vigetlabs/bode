@@ -23,7 +23,7 @@ file_path_for(char *requested_filename)
 char *
 file_content_type_for(MimeTypes *mime_types, char *filename)
 {
-    char *ext = file_get_extension(filename);
+    const char *ext = file_get_extension(filename);
 
     return mime_types_find_content_type(mime_types, ext);
 }
@@ -31,25 +31,28 @@ file_content_type_for(MimeTypes *mime_types, char *filename)
 char *
 file_get_extension(char *filename)
 {
-    const char *d = "."; // split on '.'
+    // Locate the last '.' without mutating the caller's string. A name with no
+    // dot (or a trailing dot) has no extension; return "" so the MIME lookup
+    // falls back to the default type rather than matching on a bogus token.
+    char *dot = strrchr(filename, '.');
 
-    char *token,
-         *ext,
-         *fp = filename;
-
-    while ((token = strsep(&fp, d)) != NULL) {
-        ext = token;
+    if (dot == NULL || *(dot + 1) == '\0') {
+        return "";
     }
 
-    return ext;
+    return dot + 1;
 }
 
 int
-ends_with(char *path, char end)
+ends_with(const char *path, char end)
 {
-    int index = strlen(path);
+    size_t length = strlen(path);
 
-    return path[index] == end;
+    if (length == 0) {
+        return 0;
+    }
+
+    return path[length - 1] == end;
 }
 
 char *
