@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include <mime.h>
 #include <util.h>
@@ -56,7 +57,17 @@ mime_types_load(Config *config)
 
     asprintf(&filename, "%s/%s", config->config_dir, MIME_TYPES_CONFIG_FILENAME);
 
-    FILE *fp = fopen(filename, "r"); // TODO: check for failure
+    FILE *fp = fopen(filename, "r");
+
+    // A missing or unreadable mime.types must not crash the server on startup.
+    // Report it and let the caller decide what to do.
+    if (fp == NULL) {
+        fprintf(stderr, "Couldn't open MIME types file '%s': %s\n",
+                filename, strerror(errno));
+        free(filename);
+        return NULL;
+    }
+
     const char *d = " \t\n";
 
     char line[BUF_SIZE],

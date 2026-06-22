@@ -55,6 +55,10 @@ main(int argc, char *argv[])
 
     MimeTypes *mime_types = mime_types_load(config);
 
+    if (!mime_types) {
+        return 1;
+    }
+
     listener = socket(PF_INET, SOCK_STREAM, 0);
     check(listener >= 0, "Couldn't create socket.\n");
 
@@ -217,7 +221,7 @@ set_connection_timeouts(int connection)
 Config *
 initialize_configuration(int argc, char *argv[])
 {
-    char   ch      = '\0';
+    int    ch      = -1;
     Config *config = config_create();
     int    port    = 0;
 
