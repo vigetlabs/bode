@@ -36,7 +36,29 @@
 char *fetch_request_path(int connection, char *document_root);
 char *resolve_within_root(const char *document_root, const char *candidate);
 void set_connection_timeouts(int connection);
+ssize_t send_all(int fd, const char *buf, size_t len);
 Config *initialize_configuration(int argc, char *argv[]);
+
+/*
+    send() may transmit fewer bytes than requested, so a single call can
+    truncate a large response. Loop until everything is sent. Returns the
+    number of bytes sent, or -1 if the peer went away / send failed.
+*/
+ssize_t
+send_all(int fd, const char *buf, size_t len)
+{
+    size_t total = 0;
+
+    while (total < len) {
+        ssize_t sent = send(fd, buf + total, len - total, 0);
+        if (sent <= 0) {
+            return -1;
+        }
+        total += sent;
+    }
+
+    return (ssize_t) total;
+}
 
 int
 main(int argc, char *argv[])
@@ -96,7 +118,7 @@ main(int argc, char *argv[])
 
             output = response_output(response);
 
-            send(conn, output, response_length(response), 0);
+            send_all(conn, output, response_length(response));
 
             check(close(conn) == 0, "Error closing connection socket.\n");
 
