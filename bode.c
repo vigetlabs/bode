@@ -284,10 +284,18 @@ initialize_configuration(int argc, char *argv[])
     while ((ch = getopt_long(argc, argv, "d:p:c:", options, NULL)) != -1) {
         switch (ch) {
             case 'd':
-                config_set(config, CONFIG_DOCUMENT_ROOT, optarg);
+                if (config_set(config, CONFIG_DOCUMENT_ROOT, optarg) != 0) {
+                    fprintf(stderr, "--doc-root is too long (maximum %d characters).\n",
+                            CONFIG_VALUE_MAX_LENGTH - 1);
+                    return NULL;
+                }
                 break;
             case 'c':
-                config_set(config, CONFIG_CONFIG_DIR, optarg);
+                if (config_set(config, CONFIG_CONFIG_DIR, optarg) != 0) {
+                    fprintf(stderr, "--conf-dir is too long (maximum %d characters).\n",
+                            CONFIG_VALUE_MAX_LENGTH - 1);
+                    return NULL;
+                }
                 break;
             case 'p':
                 port = atoi(optarg);

@@ -35,21 +35,41 @@ test_config_set_overwrites_value()
 }
 
 char *
-test_config_set_truncates_long_value()
+test_config_set_rejects_long_value()
 {
-    /* Values are stored in a CONFIG_VALUE_MAX_LENGTH buffer. An over-long
-       value must be truncated and still NUL-terminated, never read past the
-       end of the buffer. */
-    char value[CONFIG_VALUE_MAX_LENGTH * 2];
+    /* Values live in a CONFIG_VALUE_MAX_LENGTH buffer. An over-long value must
+       be refused (so startup can report it), not silently truncated, and the
+       previous value must be kept. */
+    char value[CONFIG_VALUE_MAX_LENGTH + 1];
 
     memset(value, 'a', sizeof(value) - 1);
     value[sizeof(value) - 1] = '\0';
 
     Config *config = config_create();
-    config_set(config, CONFIG_DOCUMENT_ROOT, value);
 
-    mu_assert(strlen(config->document_root) == CONFIG_VALUE_MAX_LENGTH - 1,
-              "an over-long value should be truncated to fit the buffer");
+    mu_assert(config_set(config, CONFIG_DOCUMENT_ROOT, value) == -1,
+              "an over-long value should be rejected");
+    mu_assert(strcmp(config->document_root, CONFIG_DEFAULT_DOCUMENT_ROOT) == 0,
+              "a rejected value should leave the previous value in place");
+
+    config_free(config);
+    return NULL;
+}
+
+char *
+test_config_set_accepts_longest_value()
+{
+    char value[CONFIG_VALUE_MAX_LENGTH];
+
+    memset(value, 'a', sizeof(value) - 1);
+    value[sizeof(value) - 1] = '\0';
+
+    Config *config = config_create();
+
+    mu_assert(config_set(config, CONFIG_DOCUMENT_ROOT, value) == 0,
+              "a value that just fits should be accepted");
+    mu_assert(strcmp(config->document_root, value) == 0,
+              "a value that just fits should be stored intact");
 
     config_free(config);
     return NULL;
@@ -61,7 +81,8 @@ all_tests()
     mu_suite_start();
     mu_run_test(test_config_create_sets_defaults);
     mu_run_test(test_config_set_overwrites_value);
-    mu_run_test(test_config_set_truncates_long_value);
+    mu_run_test(test_config_set_rejects_long_value);
+    mu_run_test(test_config_set_accepts_longest_value);
     return NULL;
 }
 
