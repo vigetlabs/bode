@@ -33,10 +33,15 @@
 // memory by streaming an unbounded request.
 #define MAX_REQUEST_SIZE (64 * 1024)
 
+// The connection a forked worker is serving, so the out-of-memory handler
+// knows where to send its 500.
+static int worker_connection = -1;
+
 char *fetch_request_path(int connection, char *document_root);
 char *resolve_within_root(const char *document_root, const char *candidate);
 void set_connection_timeouts(int connection);
 ssize_t send_all(int fd, const char *buf, size_t len);
+void send_out_of_memory_response(void);
 Config *initialize_configuration(int argc, char *argv[]);
 
 /*
@@ -109,6 +114,9 @@ main(int argc, char *argv[])
 
         pid = fork();
         if (pid == 0) {
+            worker_connection = conn;
+            set_out_of_memory_handler(send_out_of_memory_response);
+
             char *request_path = fetch_request_path(conn, config->document_root);
 
             // Child process, handle connection
@@ -148,6 +156,9 @@ fetch_request_path(int connection, char *document_root)
     ssize_t bytes_received  = 0;
     size_t  total_received  = 0;
 
+    check_mem(request);
+    check_mem(tmp);
+
     while (1) {
         bytes_received = recv(connection, tmp, BUF_SIZE, 0);
 
@@ -159,6 +170,7 @@ fetch_request_path(int connection, char *document_root)
 
         // sds may reallocate on append, so reassign the handle.
         request = sdscatlen(request, tmp, bytes_received);
+        check_mem(request);
         total_received += bytes_received;
 
         // Refuse to buffer an unbounded request.
@@ -182,7 +194,7 @@ fetch_request_path(int connection, char *document_root)
         return NULL;
     }
 
-    asprintf(&relative_path, "%s%s", document_root, tmp);
+    check_mem(asprintf(&relative_path, "%s%s", document_root, tmp) != -1);
 
     sdsfree(request);
     free(tmp);
@@ -223,7 +235,12 @@ resolve_within_root(const char *document_root, const char *candidate)
         return NULL;
     }
 
-    return strdup(candidate_real);
+    // NULL already means "not servable" to the caller, so an allocation
+    // failure must not be allowed to masquerade as a 404.
+    char *resolved = strdup(candidate_real);
+    check_mem(resolved);
+
+    return resolved;
 }
 
 /*
@@ -238,6 +255,16 @@ set_connection_timeouts(int connection)
 
     setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     setsockopt(connection, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+}
+
+/*
+    Out-of-memory handler for a forked worker: answer the client with a fixed
+    500 (no allocation needed) before the worker exits.
+*/
+void
+send_out_of_memory_response(void)
+{
+    send_all(worker_connection, RESPONSE_OUT_OF_MEMORY, strlen(RESPONSE_OUT_OF_MEMORY));
 }
 
 Config *
@@ -257,10 +284,18 @@ initialize_configuration(int argc, char *argv[])
     while ((ch = getopt_long(argc, argv, "d:p:c:", options, NULL)) != -1) {
         switch (ch) {
             case 'd':
-                config_set(config, CONFIG_DOCUMENT_ROOT, optarg);
+                if (config_set(config, CONFIG_DOCUMENT_ROOT, optarg) != 0) {
+                    fprintf(stderr, "--doc-root is too long (maximum %d characters).\n",
+                            CONFIG_VALUE_MAX_LENGTH - 1);
+                    return NULL;
+                }
                 break;
             case 'c':
-                config_set(config, CONFIG_CONFIG_DIR, optarg);
+                if (config_set(config, CONFIG_CONFIG_DIR, optarg) != 0) {
+                    fprintf(stderr, "--conf-dir is too long (maximum %d characters).\n",
+                            CONFIG_VALUE_MAX_LENGTH - 1);
+                    return NULL;
+                }
                 break;
             case 'p':
                 port = atoi(optarg);

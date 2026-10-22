@@ -5,6 +5,10 @@
 #include <config.h>
 #include <mime.h>
 
+/* Not in the public header; exercised directly to test growth. */
+MimeTypes *mime_types_create(int initial_allocation);
+void mime_types_push(MimeTypes *mime_types, const char *type, const char *ext);
+
 char *
 test_load_missing_file_returns_null()
 {
@@ -42,11 +46,42 @@ test_load_reads_configured_types()
 }
 
 char *
+test_push_grows_past_initial_allocation()
+{
+    /* Start with room for one entry so every push after the first goes
+       through the realloc path; all entries must survive the moves. */
+    char ext[16];
+    int  i = 0;
+
+    MimeTypes *types = mime_types_create(1);
+
+    for (i = 0; i < 100; i++) {
+        snprintf(ext, sizeof(ext), "ext%d", i);
+        mime_types_push(types, "text/plain", ext);
+    }
+
+    mu_assert(types->count == 100, "all pushed types should be counted");
+    mu_assert(types->allocated >= types->count,
+              "allocation should keep up with the count");
+
+    for (i = 0; i < 100; i++) {
+        snprintf(ext, sizeof(ext), "ext%d", i);
+        mu_assert(strcmp(mime_types_find_content_type(types, ext),
+                         "text/plain") == 0,
+                  "every pushed extension should still be found after growing");
+    }
+
+    mime_types_free(types);
+    return NULL;
+}
+
+char *
 all_tests()
 {
     mu_suite_start();
     mu_run_test(test_load_missing_file_returns_null);
     mu_run_test(test_load_reads_configured_types);
+    mu_run_test(test_push_grows_past_initial_allocation);
     return NULL;
 }
 

@@ -4,12 +4,13 @@
 #include <util.h>
 #include <config.h>
 
-int write_value(char **target, char *value, int buf_length);
+int write_value(char **target, const char *value, int buf_length);
 
 Config *
 config_create()
 {
     Config *config = malloc(sizeof(Config));
+    check_mem(config);
 
     config->document_root = NULL;
     config->config_dir = NULL;
@@ -22,22 +23,23 @@ config_create()
     return config;
 }
 
-void
+/*
+    Returns 0 on success, or -1 if the attribute is unknown or the value is
+    too long to store (the existing value is then left unchanged).
+*/
+int
 config_set(Config *config, int attr, void *value)
 {
     switch (attr) {
         case CONFIG_DOCUMENT_ROOT:
-            write_value(&config->document_root, (char *)value, CONFIG_VALUE_MAX_LENGTH);
-            break;
+            return write_value(&config->document_root, (char *)value, CONFIG_VALUE_MAX_LENGTH);
         case CONFIG_CONFIG_DIR:
-            write_value(&config->config_dir, (char *)value, CONFIG_VALUE_MAX_LENGTH);
-            break;
+            return write_value(&config->config_dir, (char *)value, CONFIG_VALUE_MAX_LENGTH);
         case CONFIG_PORT:
             config->port = *(int *)value;
-            break;
+            return 0;
         default:
-            // TODO: error
-            break;
+            return -1;
     }
 }
 
@@ -51,12 +53,22 @@ config_free(Config *config)
 }
 
 int
-write_value(char **target, char *value, int buf_length)
+write_value(char **target, const char *value, int buf_length)
 {
-    // TODO: Conditionally allocate?
-    *target = realloc(*target, buf_length * sizeof(char *));
+    size_t length = strlen(value);
 
-    strncpy(*target, value, buf_length - 1);
+    // Refuse rather than truncate: a silently shortened path would point
+    // somewhere the user never asked for.
+    if (length >= (size_t) buf_length) {
+        return -1;
+    }
+
+    // TODO: Conditionally allocate?
+    char *resized = realloc(*target, buf_length * sizeof(char));
+    check_mem(resized);
+    *target = resized;
+
+    memcpy(*target, value, length + 1);
 
     return 0;
 }

@@ -19,6 +19,16 @@ typedef struct Response {
     size_t total_size;
 } Response;
 
+// Sent as-is when a worker runs out of memory, so it must not be built at
+// runtime.
+#define RESPONSE_OUT_OF_MEMORY                \
+    "HTTP/1.1 500 INTERNAL SERVER ERROR\r\n"  \
+    "Content-Type: text/plain\r\n"            \
+    "Content-Length: 22\r\n"                  \
+    "Connection: close\r\n"                   \
+    "\r\n"                                    \
+    "Internal Server Error\n"
+
 Response *response_create(char *filename, MimeTypes *mime_types);
 int response_bode_from_string(Response *response, const char *bode);
 int response_bode_from_file(Response *response, FILE *source);

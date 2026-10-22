@@ -18,7 +18,7 @@ typedef struct Config {
 } Config;
 
 Config *config_create();
-void config_set(Config *config, int attr, void *value);
+int config_set(Config *config, int attr, void *value);
 void config_free(Config *config);
 
 #endif
