@@ -109,12 +109,13 @@ main(int argc, char *argv[])
     while (1) {
         conn = accept(listener, NULL, NULL);
         if (conn < 0) {
-            // A signal or a client that hung up before we accepted it is
-            // not a reason to take the whole server down.
-            if (errno == EINTR || errno == ECONNABORTED) {
-                continue;
+            // A failed accept is about one connection (or a passing resource
+            // shortage), not a reason to take the whole server down. EINTR
+            // is just a signal arriving and isn't worth logging.
+            if (errno != EINTR) {
+                perror("Error calling accept");
             }
-            check(0, "Error calling accept.\n");
+            continue;
         }
 
         set_connection_timeouts(conn);
@@ -145,7 +146,9 @@ main(int argc, char *argv[])
             perror("Error forking worker");
         }
 
-        check(close(conn) == 0, "Error closing connection socket.\n");
+        if (close(conn) != 0) {
+            perror("Error closing connection socket");
+        }
     }
 }
 
