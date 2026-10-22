@@ -5,6 +5,7 @@
     listen().  Finally, the connections are accepted with accept(2).
 */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -22,6 +23,7 @@
 #include <mime.h>
 #include <util.h>
 #include <config.h>
+#include <process.h>
 
 #define LISTENQ 1024
 
@@ -65,7 +67,6 @@ main(int argc, char *argv[])
 {
     int     listener, conn, result, optval;
     struct  sockaddr_in servaddr;
-    char    *output;
     pid_t   pid;
 
     Config    *config     = initialize_configuration(argc, argv);
@@ -99,24 +100,35 @@ main(int argc, char *argv[])
     result = listen(listener, LISTENQ);
     check(result == 0, "Call to listen failed.\n");
 
+    check(install_child_reaper() == 0, "Couldn't install SIGCHLD handler.\n");
+
     fprintf(stderr, "My bode is redy on port %d.\n", config->port);
 
+    // Serve until killed; there is no shutdown path, so config and
+    // mime_types live for the life of the process.
     while (1) {
         conn = accept(listener, NULL, NULL);
-        check(conn >= 0, "Error calling accept.\n");
+        if (conn < 0) {
+            // A signal or a client that hung up before we accepted it is
+            // not a reason to take the whole server down.
+            if (errno == EINTR || errno == ECONNABORTED) {
+                continue;
+            }
+            check(0, "Error calling accept.\n");
+        }
 
         set_connection_timeouts(conn);
 
         pid = fork();
         if (pid == 0) {
-            char *request_path = fetch_request_path(conn, config->document_root);
-
             // Child process, handle connection
             check(close(listener) == 0, "Error closing listening socket.\n");
 
+            char *request_path = fetch_request_path(conn, config->document_root);
+
             Response *response = response_create(request_path, mime_types);
 
-            output = response_output(response);
+            char *output = response_output(response);
 
             send_all(conn, output, response_length(response));
 
@@ -129,14 +141,12 @@ main(int argc, char *argv[])
             exit(0);
         }
 
+        if (pid < 0) {
+            perror("Error forking worker");
+        }
+
         check(close(conn) == 0, "Error closing connection socket.\n");
-
-        waitpid(-1, NULL, WNOHANG);
     }
-
-    config_free(config);
-    mime_types_free(mime_types);
-    return 1;
 }
 
 char *
