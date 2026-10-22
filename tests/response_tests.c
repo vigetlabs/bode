@@ -88,11 +88,29 @@ test_read_error_is_500_with_real_content_length()
 }
 
 char *
+test_out_of_memory_response_is_well_formed()
+{
+    /* Sent verbatim when a worker runs out of memory, so it can't be built at
+       runtime; make sure the hand-written Content-Length is right. */
+    const char *body = strstr(RESPONSE_OUT_OF_MEMORY, "\r\n\r\n");
+    const char *cl   = strstr(RESPONSE_OUT_OF_MEMORY, "Content-Length: ");
+
+    mu_assert(strncmp(RESPONSE_OUT_OF_MEMORY, "HTTP/1.1 500 ", 13) == 0,
+              "out-of-memory response should be a 500");
+    mu_assert(body != NULL && cl != NULL && cl < body,
+              "out-of-memory response should have headers and a body");
+    mu_assert((size_t) atoi(cl + strlen("Content-Length: ")) == strlen(body + 4),
+              "Content-Length must match the out-of-memory body");
+    return NULL;
+}
+
+char *
 all_tests()
 {
     mu_suite_start();
     mu_run_test(test_content_length_matches_body_for_a_real_file);
     mu_run_test(test_read_error_is_500_with_real_content_length);
+    mu_run_test(test_out_of_memory_response_is_well_formed);
     return NULL;
 }
 

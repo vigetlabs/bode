@@ -33,10 +33,15 @@
 // memory by streaming an unbounded request.
 #define MAX_REQUEST_SIZE (64 * 1024)
 
+// The connection a forked worker is serving, so the out-of-memory handler
+// knows where to send its 500.
+static int worker_connection = -1;
+
 char *fetch_request_path(int connection, char *document_root);
 char *resolve_within_root(const char *document_root, const char *candidate);
 void set_connection_timeouts(int connection);
 ssize_t send_all(int fd, const char *buf, size_t len);
+void send_out_of_memory_response(void);
 Config *initialize_configuration(int argc, char *argv[]);
 
 /*
@@ -109,6 +114,9 @@ main(int argc, char *argv[])
 
         pid = fork();
         if (pid == 0) {
+            worker_connection = conn;
+            set_out_of_memory_handler(send_out_of_memory_response);
+
             char *request_path = fetch_request_path(conn, config->document_root);
 
             // Child process, handle connection
@@ -247,6 +255,16 @@ set_connection_timeouts(int connection)
 
     setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     setsockopt(connection, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+}
+
+/*
+    Out-of-memory handler for a forked worker: answer the client with a fixed
+    500 (no allocation needed) before the worker exits.
+*/
+void
+send_out_of_memory_response(void)
+{
+    send_all(worker_connection, RESPONSE_OUT_OF_MEMORY, strlen(RESPONSE_OUT_OF_MEMORY));
 }
 
 Config *

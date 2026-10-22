@@ -1,11 +1,14 @@
 #include "minunit.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
 
 #include <config.h>
 #include <mime.h>
+#include <response.h>
+#include <util.h>
 
 /* Not in the public headers; exercised directly so we can force huge sizes. */
 int write_value(char **target, const char *value, int buf_length);
@@ -68,6 +71,48 @@ mime_types_push_grow_fails()
     mime_types_push(mime_types, "text/plain", "txt");
 }
 
+/* Write end of the pipe the out-of-memory handler reports through; stands in
+   for the client connection the server's handler writes to. */
+static int handler_fd = -1;
+
+void
+send_out_of_memory_response()
+{
+    write(handler_fd, RESPONSE_OUT_OF_MEMORY, strlen(RESPONSE_OUT_OF_MEMORY));
+}
+
+char *
+test_out_of_memory_handler_runs_before_exit()
+{
+    /* A worker installs a handler so a failed allocation still answers the
+       client with a 500 before the process exits. */
+    char    reply[256] = {0};
+    int     fds[2], status = 0;
+    ssize_t received = 0;
+
+    mu_assert(pipe(fds) == 0, "pipe failed");
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        close(fds[0]);
+        handler_fd = fds[1];
+        set_out_of_memory_handler(send_out_of_memory_response);
+        write_value_oversized();
+        _exit(0);
+    }
+
+    close(fds[1]);
+    received = read(fds[0], reply, sizeof(reply) - 1);
+    close(fds[0]);
+    waitpid(pid, &status, 0);
+
+    mu_assert(received > 0 && strncmp(reply, "HTTP/1.1 500 ", 13) == 0,
+              "the handler should have sent a 500 before exiting");
+    mu_assert(WIFEXITED(status) && WEXITSTATUS(status) == EXIT_FAILURE,
+              "the process should still exit with EXIT_FAILURE");
+    return NULL;
+}
+
 char *
 test_write_value_exits_when_allocation_fails()
 {
@@ -99,6 +144,7 @@ all_tests()
     mu_run_test(test_write_value_exits_when_allocation_fails);
     mu_run_test(test_mime_types_create_exits_when_allocation_fails);
     mu_run_test(test_mime_types_push_exits_when_grow_fails);
+    mu_run_test(test_out_of_memory_handler_runs_before_exit);
     return NULL;
 }
 
