@@ -36,13 +36,23 @@ response_create(char *filename, MimeTypes *mime_types)
 
         bytes_read = response_bode_from_string(response, "Y U DO DIS\n");
     } else {
-        // 200 -- file read could fail in bode_from_file?
-        response_add_status(response, 200);
-        response_add_header_str(response, "Content-Type", file_content_type_for(mime_types, full_file_path));
-
         bytes_read = response_bode_from_file(response, source);
-
         fclose(source);
+
+        if (bytes_read < 0) {
+            // A mid-file read error left no usable body. Serve a real 500 with
+            // a correct Content-Length instead of emitting "Content-Length: -1".
+            sdsfree(response->bode);
+            response->bode = NULL;
+
+            response_add_status(response, 500);
+            response_add_header_str(response, "Content-Type", "text/plain");
+
+            bytes_read = response_bode_from_string(response, "Internal Server Error\n");
+        } else {
+            response_add_status(response, 200);
+            response_add_header_str(response, "Content-Type", file_content_type_for(mime_types, full_file_path));
+        }
     }
 
     response_add_header_int(response, "Content-Length", bytes_read);
