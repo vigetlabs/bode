@@ -148,6 +148,9 @@ fetch_request_path(int connection, char *document_root)
     ssize_t bytes_received  = 0;
     size_t  total_received  = 0;
 
+    check_mem(request);
+    check_mem(tmp);
+
     while (1) {
         bytes_received = recv(connection, tmp, BUF_SIZE, 0);
 
@@ -159,6 +162,7 @@ fetch_request_path(int connection, char *document_root)
 
         // sds may reallocate on append, so reassign the handle.
         request = sdscatlen(request, tmp, bytes_received);
+        check_mem(request);
         total_received += bytes_received;
 
         // Refuse to buffer an unbounded request.
@@ -182,7 +186,7 @@ fetch_request_path(int connection, char *document_root)
         return NULL;
     }
 
-    asprintf(&relative_path, "%s%s", document_root, tmp);
+    check_mem(asprintf(&relative_path, "%s%s", document_root, tmp) != -1);
 
     sdsfree(request);
     free(tmp);
@@ -223,7 +227,12 @@ resolve_within_root(const char *document_root, const char *candidate)
         return NULL;
     }
 
-    return strdup(candidate_real);
+    // NULL already means "not servable" to the caller, so an allocation
+    // failure must not be allowed to masquerade as a 404.
+    char *resolved = strdup(candidate_real);
+    check_mem(resolved);
+
+    return resolved;
 }
 
 /*

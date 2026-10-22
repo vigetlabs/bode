@@ -21,6 +21,8 @@ response_create(char *filename, MimeTypes *mime_types)
     int      bytes_read = 0;
     char     *full_file_path = file_path_for(filename);
 
+    check_mem(response);
+
     response->bode          = NULL;
     response->headers       = NULL;
     response->headers_count = 0;
@@ -70,6 +72,7 @@ response_add_status(Response *response, int status_code)
 {
     int  max_message_length = 22;
     char *message           = calloc(max_message_length, sizeof(char));
+    check_mem(message);
 
     switch(status_code) {
         case 200:
@@ -85,9 +88,11 @@ response_add_status(Response *response, int status_code)
     }
 
     Status *status = malloc(sizeof(Status));
+    check_mem(status);
 
     status->code = status_code;
     status->message = calloc(max_message_length, sizeof(char));
+    check_mem(status->message);
     strncpy(status->message, message, max_message_length);
 
     response->status = status;
@@ -101,16 +106,20 @@ response_bode_from_file(Response *response, FILE *source)
     char   buf[BUF_SIZE];
     size_t bytes_read = 0;
 
+    check_mem(body);
+
     // fread copies raw bytes (unlike fgets, which stops at newlines and NUL),
     // so binary files such as images survive intact.
     while ((bytes_read = fread(buf, 1, BUF_SIZE, source)) > 0) {
         body = sdscatlen(body, buf, bytes_read);
+        check_mem(body);
     }
 
     if (ferror(source)) {
         fprintf(stderr, "Error reading from stream.\n");
         sdsfree(body);
         response->bode = sdsempty();
+        check_mem(response->bode);
         return -1;
     }
 
@@ -123,6 +132,7 @@ int
 response_bode_from_string(Response *response, const char *bode)
 {
     response->bode = sdsnew(bode);
+    check_mem(response->bode);
 
     return sdslen(response->bode);
 }
@@ -133,17 +143,23 @@ response_output(Response *response)
     sds output = sdsempty();
     int i      = 0;
 
+    check_mem(output);
+
     output = sdscatprintf(output, "HTTP/1.1 %d %s\r\n", response->status->code, response->status->message);
+    check_mem(output);
 
     for(i = 0; i < response->headers_count; i++) {
         output = sdscatprintf(output, "%s: %s\r\n", response->headers[i]->key, response->headers[i]->value);
+        check_mem(output);
     }
 
     output = sdscatlen(output, "\r\n", 2);
+    check_mem(output);
 
     // sdscatlen with the body's true length (not strlen) so a body containing
     // NUL bytes is sent in full.
     output = sdscatlen(output, response->bode, sdslen(response->bode));
+    check_mem(output);
 
     response->total_size = sdslen(output);
 
@@ -182,8 +198,10 @@ response_free(Response *response)
 void
 response_add_header_str(Response *response, const char *key, char *value)
 {
-    response->headers = realloc(response->headers, (response->headers_count + 1) * sizeof(Header *));
+    Header **resized = realloc(response->headers, (response->headers_count + 1) * sizeof(Header *));
+    check_mem(resized);
 
+    response->headers = resized;
     response->headers[response->headers_count] = header_create(key, value);
     response->headers_count++;
 }
@@ -193,7 +211,7 @@ response_add_header_int(Response *response, const char *key, int value)
 {
     char *str_value;
 
-    asprintf(&str_value, "%d", value);
+    check_mem(asprintf(&str_value, "%d", value) != -1);
 
     response_add_header_str(response, key, str_value);
 

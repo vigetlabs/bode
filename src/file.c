@@ -1,5 +1,6 @@
 #include <file.h>
 #include <mime.h>
+#include <util.h>
 
 int is_file(char *filename);
 int is_dir(char *filename);
@@ -13,6 +14,7 @@ file_path_for(char *requested_filename)
 
     if (is_file(requested_filename)) {
         filename = strdup(requested_filename);
+        check_mem(filename);
     } else if (is_dir(requested_filename)) {
         filename = path_append(requested_filename, "index.html");
     }
@@ -61,13 +63,15 @@ path_append(char *path, const char *filename)
     char *full_path;
     char *format = calloc(6, sizeof(char));
 
+    check_mem(format);
+
     if (ends_with(path, '/')) {
         strncpy(format, "%s%s", 4);
     } else {
         strncpy(format, "%s/%s", 5);
     }
 
-    asprintf(&full_path, format, path, filename);
+    check_mem(asprintf(&full_path, format, path, filename) != -1);
     free(format);
 
     return full_path;

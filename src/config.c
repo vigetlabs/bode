@@ -4,12 +4,13 @@
 #include <util.h>
 #include <config.h>
 
-int write_value(char **target, char *value, int buf_length);
+int write_value(char **target, const char *value, int buf_length);
 
 Config *
 config_create()
 {
     Config *config = malloc(sizeof(Config));
+    check_mem(config);
 
     config->document_root = NULL;
     config->config_dir = NULL;
@@ -51,12 +52,16 @@ config_free(Config *config)
 }
 
 int
-write_value(char **target, char *value, int buf_length)
+write_value(char **target, const char *value, int buf_length)
 {
     // TODO: Conditionally allocate?
-    *target = realloc(*target, buf_length * sizeof(char *));
+    char *resized = realloc(*target, buf_length * sizeof(char));
+    check_mem(resized);
+    *target = resized;
 
+    // strncpy doesn't terminate when value fills the buffer.
     strncpy(*target, value, buf_length - 1);
+    (*target)[buf_length - 1] = '\0';
 
     return 0;
 }

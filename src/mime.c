@@ -9,11 +9,11 @@
 MimeTypes *
 mime_types_create(int initial_allocation)
 {
-    // TODO: check for alloc errors
     MimeTypes *mime_types = calloc(1, sizeof(MimeTypes));
+    check_mem(mime_types);
 
-    // TODO: check for alloc errors
-    mime_types->types     = calloc(initial_allocation, sizeof(MimeType));
+    mime_types->types     = calloc(initial_allocation, sizeof(MimeType *));
+    check_mem(mime_types->types);
     mime_types->allocated = initial_allocation;
     mime_types->count     = 0;
 
@@ -23,26 +23,29 @@ mime_types_create(int initial_allocation)
 MimeType *
 mime_type_create(const char *type, const char *ext)
 {
-    // TODO: check for alloc errors
     MimeType *mime_type = calloc(1, sizeof(MimeType));
+    check_mem(mime_type);
 
     mime_type->content_type = strdup(type);
+    check_mem(mime_type->content_type);
+
     mime_type->extension    = strdup(ext);
+    check_mem(mime_type->extension);
 
     return mime_type;
 }
 
 void
-mime_types_push(MimeTypes *mime_types, char *type, char *ext)
+mime_types_push(MimeTypes *mime_types, const char *type, const char *ext)
 {
-    int total_allocation,
-        index = mime_types->count;
+    int index = mime_types->count;
 
     if (mime_types->count >= mime_types->allocated) {
-        total_allocation = mime_types->allocated * 2;
+        int      total_allocation = mime_types->allocated * 2;
+        MimeType **resized        = realloc(mime_types->types, total_allocation * sizeof(MimeType *));
+        check_mem(resized);
 
-        // TODO: check for alloc errors
-        mime_types->types = realloc(mime_types->types, total_allocation * sizeof(MimeType *));
+        mime_types->types     = resized;
         mime_types->allocated = total_allocation;
     }
 
@@ -55,7 +58,7 @@ mime_types_load(Config *config)
 {
     char *filename;
 
-    asprintf(&filename, "%s/%s", config->config_dir, MIME_TYPES_CONFIG_FILENAME);
+    check_mem(asprintf(&filename, "%s/%s", config->config_dir, MIME_TYPES_CONFIG_FILENAME) != -1);
 
     FILE *fp = fopen(filename, "r");
 
@@ -72,8 +75,9 @@ mime_types_load(Config *config)
 
     char line[BUF_SIZE],
          *token  = NULL,
-         *type   = NULL,
          *source = NULL;
+
+    const char *type = NULL;
 
     MimeTypes *mime_types = mime_types_create(MIME_TYPES_ALLOC_SIZE);
 
